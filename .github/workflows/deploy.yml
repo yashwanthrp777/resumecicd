@@ -109,8 +109,13 @@ jobs:
             echo "🚀 Starting deployment at $(date)"
             echo "========================================="
 
-            # Navigate to project directory
-            cd ~/ai-resume-analyzer || exit 1
+            # Navigate to project directory or clone it if it doesn't exist
+            if [ ! -d "$HOME/ai-resume-analyzer" ]; then
+              echo "📁 Directory $HOME/ai-resume-analyzer not found. Cloning repository..."
+              git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git $HOME/ai-resume-analyzer
+            fi
+
+            cd $HOME/ai-resume-analyzer || exit 1
 
             # Pull latest source code (for docker-compose.yml, nginx config, etc.)
             git pull origin main
