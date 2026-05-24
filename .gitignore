@@ -4,3 +4,19 @@
 # React Router
 /.react-router/
 /build/
+
+# Environment files (NEVER commit secrets)
+.env
+.env.local
+.env.production
+
+# SSL Certificates
+/certbot/
+
+# Docker volumes / persistent data
+/prometheus-data/
+/grafana-data/
+
+# OS files
+Thumbs.db
+*.log

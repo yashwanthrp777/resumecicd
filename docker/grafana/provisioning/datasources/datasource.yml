@@ -1,0 +1,19 @@
+# =============================================================
+# Grafana Auto-Provisioned Datasource
+# =============================================================
+# This file auto-configures Prometheus as the default
+# data source when Grafana starts for the first time.
+# No manual setup needed in the Grafana UI.
+# =============================================================
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: '15s'

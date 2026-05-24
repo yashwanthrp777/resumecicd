@@ -334,24 +334,68 @@ export const usePuterStore = create<PuterStore>((set, get) => {
             return;
         }
 
-        return puter.ai.chat(
-            [
-                {
-                    role: "user",
-                    content: [
+        try {
+            console.log("Analyzing resume with model: claude-3-7-sonnet");
+            return await puter.ai.chat(
+                [
+                    {
+                        role: "user",
+                        content: [
+                            {
+                                type: "file",
+                                puter_path: path,
+                            },
+                            {
+                                type: "text",
+                                text: message,
+                            },
+                        ],
+                    },
+                ],
+                { model: "claude-3-7-sonnet" }
+            ) as AIResponse;
+        } catch (err) {
+            console.warn("Puter.js AI chat failed with claude-3-7-sonnet, falling back to claude-3-5-sonnet. Error:", err);
+            try {
+                return await puter.ai.chat(
+                    [
                         {
-                            type: "file",
-                            puter_path: path,
-                        },
-                        {
-                            type: "text",
-                            text: message,
+                            role: "user",
+                            content: [
+                                {
+                                    type: "file",
+                                    puter_path: path,
+                                },
+                                {
+                                    type: "text",
+                                    text: message,
+                                },
+                            ],
                         },
                     ],
-                },
-            ],
-            { model: "claude-3-7-sonnet" }
-        ) as Promise<AIResponse | undefined>;
+                    { model: "claude-3-5-sonnet" }
+                ) as AIResponse;
+            } catch (err2) {
+                console.warn("Puter.js AI chat failed with claude-3-5-sonnet, falling back to default model. Error:", err2);
+                return await puter.ai.chat(
+                    [
+                        {
+                            role: "user",
+                            content: [
+                                {
+                                    type: "file",
+                                    puter_path: path,
+                                },
+                                {
+                                    type: "text",
+                                    text: message,
+                                },
+                            ],
+                        },
+                    ]
+                ) as AIResponse;
+            }
+        }
     };
 
     const img2txt = async (image: string | File | Blob, testMode?: boolean) => {

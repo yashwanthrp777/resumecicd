@@ -12,6 +12,7 @@ const Upload = () => {
     const navigate = useNavigate();
     const [isProcessing, setIsProcessing] = useState(false);
     const [statusText, setStatusText] = useState('');
+    const [errorText, setErrorText] = useState('');
     const [file, setFile] = useState<File | null>(null);
 
     const handleFileSelect = (file: File | null) => {
@@ -20,47 +21,81 @@ const Upload = () => {
 
     const handleAnalyze = async ({ companyName, jobTitle, jobDescription, file }: { companyName: string, jobTitle: string, jobDescription: string, file: File  }) => {
         setIsProcessing(true);
+        setErrorText('');
 
-        setStatusText('Uploading the file...');
-        const uploadedFile = await fs.upload([file]);
-        if(!uploadedFile) return setStatusText('Error: Failed to upload file');
+        try {
+            setStatusText('Uploading the file...');
+            const uploadedFile = await fs.upload([file]);
+            if(!uploadedFile) {
+                setErrorText('Failed to upload PDF file.');
+                setIsProcessing(false);
+                return;
+            }
 
-        setStatusText('Converting to image...');
-        const imageFile = await convertPdfToImage(file);
-        if(!imageFile.file) return setStatusText('Error: Failed to convert PDF to image');
+            setStatusText('Converting to image...');
+            const imageFile = await convertPdfToImage(file);
+            if(!imageFile.file) {
+                setErrorText('Failed to convert PDF to image. Please verify it is a valid PDF.');
+                setIsProcessing(false);
+                return;
+            }
 
-        setStatusText('Uploading the image...');
-        const uploadedImage = await fs.upload([imageFile.file]);
-        if(!uploadedImage) return setStatusText('Error: Failed to upload image');
+            setStatusText('Uploading the image...');
+            const uploadedImage = await fs.upload([imageFile.file]);
+            if(!uploadedImage) {
+                setErrorText('Failed to upload converted image.');
+                setIsProcessing(false);
+                return;
+            }
 
-        setStatusText('Preparing data...');
-        const uuid = generateUUID();
-        const data = {
-            id: uuid,
-            resumePath: uploadedFile.path,
-            imagePath: uploadedImage.path,
-            companyName, jobTitle, jobDescription,
-            feedback: '',
+            setStatusText('Preparing data...');
+            const uuid = generateUUID();
+            const data = {
+                id: uuid,
+                resumePath: uploadedFile.path,
+                imagePath: uploadedImage.path,
+                companyName, jobTitle, jobDescription,
+                feedback: '',
+            }
+            await kv.set(`resume:${uuid}`, JSON.stringify(data));
+
+            setStatusText('Analyzing...');
+
+            const feedback = await ai.feedback(
+                uploadedFile.path,
+                prepareInstructions({ jobTitle, jobDescription })
+            )
+            if (!feedback) {
+                setErrorText('Failed to analyze resume (the AI returned no feedback).');
+                setIsProcessing(false);
+                return;
+            }
+
+            const feedbackText = typeof feedback.message.content === 'string'
+                ? feedback.message.content
+                : feedback.message.content[0].text;
+
+            try {
+                // Sanitize potential markdown code blocks returned by AI models
+                let cleanedText = feedbackText.trim();
+                cleanedText = cleanedText.replace(/^```[a-zA-Z]*\n?/, '').replace(/\n?```$/, '').trim();
+                data.feedback = JSON.parse(cleanedText);
+            } catch (jsonErr) {
+                console.error("AI returned invalid JSON:", feedbackText, jsonErr);
+                setErrorText(`AI analysis completed, but the result could not be parsed. Error: ${jsonErr instanceof Error ? jsonErr.message : jsonErr}`);
+                setIsProcessing(false);
+                return;
+            }
+
+            await kv.set(`resume:${uuid}`, JSON.stringify(data));
+            setStatusText('Analysis complete, redirecting...');
+            console.log(data);
+            navigate(`/resume/${uuid}`);
+        } catch (err) {
+            console.error("Error during analyze process:", err);
+            setErrorText(`Error during analysis: ${err instanceof Error ? err.message : err}`);
+            setIsProcessing(false);
         }
-        await kv.set(`resume:${uuid}`, JSON.stringify(data));
-
-        setStatusText('Analyzing...');
-
-        const feedback = await ai.feedback(
-            uploadedFile.path,
-            prepareInstructions({ jobTitle, jobDescription })
-        )
-        if (!feedback) return setStatusText('Error: Failed to analyze resume');
-
-        const feedbackText = typeof feedback.message.content === 'string'
-            ? feedback.message.content
-            : feedback.message.content[0].text;
-
-        data.feedback = JSON.parse(feedbackText);
-        await kv.set(`resume:${uuid}`, JSON.stringify(data));
-        setStatusText('Analysis complete, redirecting...');
-        console.log(data);
-        navigate(`/resume/${uuid}`);
     }
 
     const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
@@ -91,7 +126,15 @@ const Upload = () => {
                             <img src="/images/resume-scan.gif" className="w-full" />
                         </>
                     ) : (
-                        <h2>Drop your resume for an ATS score and improvement tips</h2>
+                        <>
+                            <h2>Drop your resume for an ATS score and improvement tips</h2>
+                            {errorText && (
+                                <div className="mt-4 p-4 bg-red-100 text-red-700 rounded-lg max-w-lg mx-auto border border-red-200">
+                                    <p className="font-semibold text-left text-sm">Something went wrong:</p>
+                                    <p className="text-xs text-left break-words mt-1">{errorText}</p>
+                                </div>
+                            )}
+                        </>
                     )}
                     {!isProcessing && (
                         <form id="upload-form" onSubmit={handleSubmit} className="flex flex-col gap-4 mt-8">

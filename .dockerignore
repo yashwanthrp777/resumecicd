@@ -1,4 +1,39 @@
-.react-router
-build
+# Dependencies
 node_modules
+
+# Build output
+build
+.react-router
+
+# Version control
+.git
+.gitignore
+
+# CI/CD
+.github
+
+# Docker files (prevent recursive context)
+docker-compose.yml
+docker
+
+# Environment files (NEVER include secrets in images)
+.env
+.env.*
+!.env.example
+
+# Documentation
 README.md
+*.md
+
+# IDE and OS files
+.vscode
+.idea
+.DS_Store
+*.log
+
+# SSL certificates
+certbot
+
+# Monitoring data
+prometheus-data
+grafana-data
