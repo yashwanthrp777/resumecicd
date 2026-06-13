@@ -126,12 +126,16 @@ jobs:
 
             # ---- Zero-Downtime Deployment ----
             # Recreate only the web container with the new image
-            # Other services (nginx, prometheus, grafana) stay running
+            # Other services (nginx, prometheus, grafana, certbot) stay running
             docker compose up -d --no-deps --force-recreate web
 
             # Wait for health check to pass
             echo "⏳ Waiting for health check..."
             sleep 10
+
+            # Reload nginx so it picks up the new web container's address
+            echo "🔄 Reloading nginx..."
+            docker compose exec nginx nginx -s reload || true
 
             # Verify the app is healthy
             if docker compose ps web | grep -q "healthy"; then
