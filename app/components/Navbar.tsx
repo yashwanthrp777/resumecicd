@@ -9,7 +9,7 @@ const Navbar = () => {
             <Link to="/upload" className="primary-button w-fit">
                 Upload Resume
             </Link>
-            <h4>welcome</h4>
+            <h4 className="text-2xl font-bold text-gradient">welcome</h4>
         </nav>
     )
 }
